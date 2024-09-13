@@ -39,8 +39,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/simple_inject-${{ steps.get_version.outputs.VERSION }}.tar.gz
-        asset_name: simple_inject-${{ steps.get_version.outputs.VERSION }}.tar.gz
+        asset_path: ./dist/py_simple_inject-${{ steps.get_version.outputs.VERSION }}.tar.gz
+        asset_name: py_simple_inject-${{ steps.get_version.outputs.VERSION }}.tar.gz
         asset_content_type: application/gzip
     # - name: Publish to PyPI
     #   env:
