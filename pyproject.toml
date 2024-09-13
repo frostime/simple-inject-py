@@ -22,8 +22,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/frostime/simple-inject"
-"Bug Tracker" = "https://github.com/frostime/simple-inject/issues"
+Homepage = "https://github.com/frostime/simple-inject-py"
+"Bug Tracker" = "https://github.com/frostime/simple-inject-py/issues"
 
 
 [build-system]
