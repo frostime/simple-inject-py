@@ -16,7 +16,7 @@ Simple Inject is a lightweight dependency injection library for Python. It provi
 You can install Simple Inject using pip:
 
 ```
-pip install simple-inject
+pip install py-simple-inject
 ```
 
 ## Usage

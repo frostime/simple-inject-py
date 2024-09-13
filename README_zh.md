@@ -14,7 +14,7 @@ Simple Inject 是一个轻量级的 Python 依赖注入库。它提供了一个�
 你可以使用 pip 安装 Simple Inject：
 
 ```
-pip install simple-inject
+pip install py-simple-inject
 ```
 
 ## 使用方法
