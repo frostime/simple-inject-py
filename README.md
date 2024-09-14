@@ -6,10 +6,12 @@ Simple Inject is a lightweight dependency injection library for Python. It provi
 
 ## Features
 
-- Dependency injection with namespaces
-- Scoped dependencies using context managers
-- Decorator for injecting dependencies into functions
-- Support for default and custom namespaces
+- Simple and intuitive API for dependency injection
+- Support for multiple namespaces to isolate dependencies
+- Scoped dependencies using context managers or decorators
+- Nested scopes for fine-grained control
+- Easy to integrate with existing projects
+- Minimal overhead and dependencies
 
 ## Installation
 
@@ -19,73 +21,81 @@ You can install Simple Inject using pip:
 pip install py-simple-inject
 ```
 
-## Usage
+## Quick Start
 
-### Basic Usage
+Here's a simple example to get you started:
 
 ```python
-from simple_inject import provide, inject
+from simple_inject import provide, inject, create_scope
 
 # Provide a dependency
-provide("config", {"api_key": "abc123"})
+provide('config', {'debug': True})
 
 # Inject a dependency
-config = inject("config")
-print(config["api_key"])  # Output: abc123
+config = inject('config')
+print(config['debug'])  # Output: True
+
+# Use scopes to manage dependencies
+with create_scope():
+    provide('config', {'debug': False})
+    config = inject('config')
+    print(config['debug'])  # Output: False
+
+# Outside the scope, the original value is preserved
+config = inject('config')
+print(config['debug'])  # Output: True
 ```
+
+## API Reference
+
+### `provide(key: str, value: Any, namespace: str = 'default')`
+
+Provide a dependency in the current context.
+
+### `inject(key: str, namespace: str = 'default') -> Any`
+
+Inject a dependency from the current context.
+
+### `create_scope()`
+
+Create a new dependency scope. Use with a `with` statement.
+
+### `scoped()`
+
+A decorator to create a new dependency scope for a function.
+
+### `purge(namespace: Optional[str] = None)`
+
+Purge dependencies, either from a specific namespace or all namespaces.
+
+## Advanced Usage
 
 ### Using Namespaces
 
 ```python
-from simple_inject import provide, inject
+provide('key', 'value1', namespace='ns1')
+provide('key', 'value2', namespace='ns2')
 
-# Provide dependencies in different namespaces
-provide("db", "production_db", namespace="production")
-provide("db", "test_db", namespace="test")
-
-# Inject dependencies from specific namespaces
-prod_db = inject("db", namespace="production")
-test_db = inject("db", namespace="test")
-
-print(prod_db)  # Output: production_db
-print(test_db)  # Output: test_db
+print(inject('key', namespace='ns1'))  # Output: value1
+print(inject('key', namespace='ns2'))  # Output: value2
 ```
 
-### Using Scopes
+### Nested Scopes
 
 ```python
-from simple_inject import provide, inject, dependency_scope
+provide('key', 'outer')
 
-with dependency_scope("request"):
-    provide("user", {"id": 1, "name": "Alice"})
-    user = inject("user")
-    print(user["name"])  # Output: Alice
+with create_scope():
+    provide('key', 'inner')
+    print(inject('key'))  # Output: inner
+    
+    with create_scope():
+        provide('key', 'innermost')
+        print(inject('key'))  # Output: innermost
 
-# The "user" dependency is no longer available outside the scope
-try:
-    inject("user")
-except KeyError:
-    print("User not found")  # This will be printed
-```
+    print(inject('key'))  # Output: inner
 
-### Using the Inject Scope Decorator
-
-```python
-from simple_inject import provide, inject, inject_scope
-
-@inject_scope("session")
-def process_user():
-    provide("session_id", "123456")
-    session_id = inject("session_id")
-    print(f"Processing user with session ID: {session_id}")
-
-process_user()  # Output: Processing user with session ID: 123456
-
-# The "session_id" dependency is no longer available after the function call
-try:
-    inject("session_id")
-except KeyError:
-    print("Session ID not found")  # This will be printed
+print(inject('key'))  # Output: outer
 ```
 
 ## Contributing
@@ -94,4 +104,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

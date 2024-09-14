@@ -1,35 +1,73 @@
+from collections import defaultdict
 from contextvars import ContextVar
-from typing import Any, Dict
+from functools import wraps
+from typing import Any, Dict, Optional
 
+
+class DependencyNotFoundError(Exception):
+    """Exception raised when a requested dependency is not found."""
+    pass
 
 class SimpleInject:
     def __init__(self):
-        self._global_dependencies: Dict[str, Dict[str, Any]] = {}
-        self._context_dependencies: ContextVar[Dict[str, Dict[str, Any]]] = ContextVar(
-            'context_dependencies', default={'default': {}}
+        self._context: ContextVar[Dict[str, Dict[str, Any]]] = ContextVar(
+            'context', default=defaultdict(dict)
         )
 
     def provide(self, key: str, value: Any, namespace: str = 'default'):
-        context_deps = self._context_dependencies.get()
-        if namespace not in context_deps:
-            context_deps[namespace] = {}
-        context_deps[namespace][key] = value
-        self._context_dependencies.set(context_deps)
+        """
+        Provide a dependency in the current context.
+
+        Parameters
+        ----------
+        key : str
+            The key to identify the dependency.
+        value : Any
+            The value of the dependency.
+        namespace : str, optional
+            The namespace for the dependency (default is 'default').
+        """
+        context = self._context.get()
+        context[namespace][key] = value
+        self._context.set(context)
 
     def inject(self, key: str, namespace: str = 'default') -> Any:
-        context_deps = self._context_dependencies.get()
-        if namespace in context_deps and key in context_deps[namespace]:
-            return context_deps[namespace][key]
+        """
+        Inject a dependency.
 
-        if (
-            namespace in self._global_dependencies
-            and key in self._global_dependencies[namespace]
-        ):
-            return self._global_dependencies[namespace][key]
+        Parameters
+        ----------
+        key : str
+            The key of the dependency to inject.
+        namespace : str, optional
+            The namespace of the dependency (default is 'default').
 
-        raise KeyError(f"Dependency '{key}' not found in namespace '{namespace}'")
+        Returns
+        -------
+        Any
+            The value of the requested dependency.
 
-    def dependency_scope(self, namespace: str = 'default'):
+        Raises
+        ------
+        DependencyNotFoundError
+            If the requested dependency is not found in the given namespace.
+        """
+        context = self._context.get()
+        if key in context[namespace]:
+            return context[namespace][key]
+        raise DependencyNotFoundError(
+            f"Dependency '{key}' not found in namespace '{namespace}'"
+        )
+
+    def create_scope(self):
+        """
+        Create a new dependency scope.
+
+        Returns
+        -------
+        ScopeManager
+            A context manager for the new dependency scope.
+        """
         class ScopeManager:
             def __init__(self, outer_self):
                 self.outer_self = outer_self
@@ -37,28 +75,48 @@ class SimpleInject:
                 self.previous_context = None
 
             def __enter__(self):
-                self.previous_context = self.outer_self._context_dependencies.get()
-                new_context = {k: v.copy() for k, v in self.previous_context.items()}
-                if namespace not in new_context:
-                    new_context[namespace] = {}
-                else:
-                    new_context[namespace] = new_context[namespace].copy()
-                self.token = self.outer_self._context_dependencies.set(new_context)
+                self.previous_context = self.outer_self._context.get()
+                new_context = defaultdict(dict)
+                for namespace, deps in self.previous_context.items():
+                    new_context[namespace] = deps.copy()
+                self.token = self.outer_self._context.set(new_context)
 
             def __exit__(self, exc_type, exc_value, traceback):
-                self.outer_self._context_dependencies.reset(self.token)
+                self.outer_self._context.reset(self.token)
 
         return ScopeManager(self)
 
-    def inject_scope(self, namespace: str = 'default'):
-        def decorator(func):
-            from functools import wraps
+    def scoped(self):
+        """
+        Decorator to create a new dependency scope for a function.
 
+        Returns
+        -------
+        Callable
+            A decorator function that creates a new dependency scope.
+        """
+        def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
-                with self.dependency_scope(namespace):
+                with self.create_scope():
                     return func(*args, **kwargs)
-
             return wrapper
-
         return decorator
+
+    def purge(self, namespace: Optional[str] = None):
+        """
+        Purge the dependencies in the specified namespace.
+
+        If no namespace is specified, all dependencies are purged.
+
+        Parameters
+        ----------
+        namespace : str, optional
+            The namespace to purge. If not specified, all dependencies are purged.
+        """
+        context = self._context.get()
+        if namespace is not None:
+            context[namespace].clear()
+        else:
+            context.clear()
+        self._context.set(context)
