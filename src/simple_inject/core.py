@@ -1,12 +1,25 @@
+import inspect
 from collections import defaultdict
 from contextvars import ContextVar
 from functools import wraps
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Generic, Optional, TypeVar, get_type_hints
+
+T = TypeVar('T')
 
 
 class DependencyNotFoundError(Exception):
     """Exception raised when a requested dependency is not found."""
+
     pass
+
+
+class Inject(Generic[T]):
+    """Marker class for injection."""
+
+    def __init__(self, key: str, namespace: str = 'default'):
+        self.key = key
+        self.namespace = namespace
+
 
 class SimpleInject:
     def __init__(self):
@@ -68,6 +81,7 @@ class SimpleInject:
         ScopeManager
             A context manager for the new dependency scope.
         """
+
         class ScopeManager:
             def __init__(self, outer_self):
                 self.outer_self = outer_self
@@ -95,12 +109,15 @@ class SimpleInject:
         Callable
             A decorator function that creates a new dependency scope.
         """
+
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
                 with self.create_scope():
                     return func(*args, **kwargs)
+
             return wrapper
+
         return decorator
 
     def purge(self, namespace: Optional[str] = None):
@@ -120,3 +137,31 @@ class SimpleInject:
         else:
             context.clear()
         self._context.set(context)
+
+    def auto_inject(self):
+        def decorator(func: Callable) -> Callable:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                sig = inspect.signature(func)
+                type_hints = get_type_hints(func)
+
+                for param_name, param in sig.parameters.items():
+                    if param_name in kwargs:
+                        continue
+
+                    annotation = type_hints.get(param_name, inspect.Parameter.empty)
+                    if isinstance(annotation, type) and issubclass(annotation, Inject):
+                        inject_instance = annotation()
+                        kwargs[param_name] = self.inject(
+                            inject_instance.key, inject_instance.namespace
+                        )
+                    elif isinstance(param.default, Inject):
+                        kwargs[param_name] = self.inject(
+                            param.default.key, param.default.namespace
+                        )
+
+                return func(*args, **kwargs)
+
+            return wrapper
+
+        return decorator

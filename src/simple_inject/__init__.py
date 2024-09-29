@@ -1,6 +1,6 @@
 from typing import Any, Optional
 
-from .core import SimpleInject
+from .core import Inject, SimpleInject
 
 __simple_inject = SimpleInject()
 
@@ -65,3 +65,7 @@ def purge(namespace: Optional[str] = None):
         The namespace to purge. If not specified, all dependencies are purged.
     """
     return __simple_inject.purge(namespace)
+
+
+def auto_inject():
+    return __simple_inject.auto_inject()
