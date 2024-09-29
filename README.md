@@ -1,6 +1,6 @@
 # Simple Inject
 
-[English](README.md)
+[中文 README](README_zh.md)
 
 Simple Inject is a lightweight Python dependency injection library. It provides an easy-to-use interface for managing dependencies across different namespaces and scopes.
 
