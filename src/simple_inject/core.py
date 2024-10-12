@@ -2,7 +2,16 @@ import inspect
 from collections import defaultdict
 from contextvars import ContextVar
 from functools import wraps
-from typing import Any, Callable, Dict, Generic, Optional, TypeVar, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Literal,
+    Optional,
+    TypeVar,
+    get_type_hints,
+)
 
 T = TypeVar('T')
 
@@ -44,7 +53,7 @@ class SimpleInject:
         context[namespace][key] = value
         self._context.set(context)
 
-    def inject(self, key: str, namespace: str = 'default') -> Any:
+    def inject(self, key: str, namespace: str = 'default', if_not_found: Literal['none', 'raise'] = 'none') -> Any:
         """
         Inject a dependency.
 
@@ -54,6 +63,10 @@ class SimpleInject:
             The key of the dependency to inject.
         namespace : str, optional
             The namespace of the dependency (default is 'default').
+        if_not_found : {'none', 'raise'}, optional
+            What to do if the dependency is not found (default is 'none').
+            - 'none' : return None.
+            - 'raise' : raise a DependencyNotFoundError.
 
         Returns
         -------
@@ -68,9 +81,12 @@ class SimpleInject:
         context = self._context.get()
         if key in context[namespace]:
             return context[namespace][key]
-        raise DependencyNotFoundError(
-            f"Dependency '{key}' not found in namespace '{namespace}'"
-        )
+        elif if_not_found == 'none':
+            return None
+        else:
+            raise DependencyNotFoundError(
+                f"Dependency '{key}' not found in namespace '{namespace}'"
+            )
 
     def create_scope(self):
         """

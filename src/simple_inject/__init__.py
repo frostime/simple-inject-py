@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from .core import Inject, SimpleInject
 
@@ -21,7 +21,7 @@ def provide(key: str, value: Any, namespace: str = 'default'):
     __simple_inject.provide(key, value, namespace)
 
 
-def inject(key: str, namespace: str = 'default') -> Any:
+def inject(key: str, namespace: str = 'default', if_not_found: Literal['none', 'raise'] = 'none') -> Any:
     """
     Inject a dependency.
 
@@ -42,7 +42,7 @@ def inject(key: str, namespace: str = 'default') -> Any:
     DependencyNotFoundError
         If the requested dependency is not found in the given namespace.
     """
-    return __simple_inject.inject(key, namespace)
+    return __simple_inject.inject(key, namespace, if_not_found)
 
 
 def create_scope():
