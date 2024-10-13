@@ -121,15 +121,16 @@ def test_purge():
 
     purge('ns1')
     with pytest.raises(Exception):
-        inject('key1', namespace='ns1')
+        inject('key1', namespace='ns1', if_not_found='raise')
+    assert inject('key1', namespace='ns1') is None
     assert inject('key2', namespace='ns2') == 'value2'
 
     provide('key1', 'new_value1', namespace='ns1')
     purge()
     with pytest.raises(Exception):
-        inject('key1', namespace='ns1')
+        inject('key1', namespace='ns1', if_not_found='raise')
     with pytest.raises(Exception):
-        inject('key2', namespace='ns2')
+        inject('key2', namespace='ns2', if_not_found='raise')
 
 
 if __name__ == '__main__':

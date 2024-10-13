@@ -35,7 +35,7 @@ def test_inject_nonexistent_key():
     Test that injecting a non-existent key raises a DependencyNotFoundError.
     """
     with pytest.raises(Exception):  # Replace with the actual exception class if known
-        inject('nonexistent_key')
+        inject('nonexistent_key', if_not_found='raise')
 
 
 def test_create_scope():
@@ -98,7 +98,7 @@ def test_purge_specific_namespace():
     provide('key2', 'value2', namespace='ns2')
     purge(namespace='ns1')
     with pytest.raises(Exception):
-        inject('key1', namespace='ns1')
+        inject('key1', namespace='ns1', if_not_found='raise')
     assert inject('key2', namespace='ns2') == 'value2'
 
 
@@ -110,9 +110,9 @@ def test_purge_all():
     provide('key2', 'value2', namespace='ns2')
     purge()
     with pytest.raises(Exception):
-        inject('key1', namespace='ns1')
+        inject('key1', namespace='ns1', if_not_found='raise')
     with pytest.raises(Exception):
-        inject('key2', namespace='ns2')
+        inject('key2', namespace='ns2', if_not_found='raise')
 
 
 def test_global_config_fixture():
@@ -139,5 +139,5 @@ def test_scope_isolation_between_tests():
     This test relies on the purge() call in the cleanup fixture.
     """
     with pytest.raises(Exception):
-        inject('key_from_previous_test')
+        inject('key_from_previous_test', if_not_found='raise')
     provide('key_for_next_test', 'value')
