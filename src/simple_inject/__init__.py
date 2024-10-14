@@ -21,7 +21,9 @@ def provide(key: str, value: Any, namespace: str = 'default'):
     __simple_inject.provide(key, value, namespace)
 
 
-def inject(key: str, namespace: str = 'default', if_not_found: Literal['none', 'raise'] = 'none') -> Any:
+def inject(
+    key: str, namespace: str = 'default', if_not_found: Literal['none', 'raise'] = 'none'
+) -> Any:
     """
     Inject a dependency.
 
@@ -43,6 +45,10 @@ def inject(key: str, namespace: str = 'default', if_not_found: Literal['none', '
         If the requested dependency is not found in the given namespace.
     """
     return __simple_inject.inject(key, namespace, if_not_found)
+
+
+def state(namespace: Optional[str] = None):
+    return __simple_inject.state(namespace)
 
 
 def create_scope():

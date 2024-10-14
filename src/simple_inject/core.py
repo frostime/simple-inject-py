@@ -53,7 +53,12 @@ class SimpleInject:
         context[namespace][key] = value
         self._context.set(context)
 
-    def inject(self, key: str, namespace: str = 'default', if_not_found: Literal['none', 'raise'] = 'none') -> Any:
+    def inject(
+        self,
+        key: str,
+        namespace: str = 'default',
+        if_not_found: Literal['none', 'raise'] = 'none',
+    ) -> Any:
         """
         Inject a dependency.
 
@@ -87,6 +92,14 @@ class SimpleInject:
             raise DependencyNotFoundError(
                 f"Dependency '{key}' not found in namespace '{namespace}'"
             )
+
+    @property
+    def state(self, namespace: Optional[str] = None):
+        all_context = self._context.get()
+        if namespace is None:
+            return all_context
+        else:
+            return all_context[namespace]
 
     def create_scope(self):
         """
