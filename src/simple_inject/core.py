@@ -93,11 +93,23 @@ class SimpleInject:
                 f"Dependency '{key}' not found in namespace '{namespace}'"
             )
 
-    @property
     def state(self, namespace: Optional[str] = None):
+        """Get the state of the dependency injection context.
+
+
+        Parameters
+        ----------
+        - `namespace` : `Optional[str]`, optional
+            - The namespace to get the state of. If not specified, the state of all namespaces is returned.
+
+        Returns
+        ----------
+        - `Dict[str, Dict[str, Any]]`
+            - The state of the dependency injection context.
+        """
         all_context = self._context.get()
         if namespace is None:
-            return all_context
+            return dict(all_context)
         else:
             return all_context[namespace]
 
