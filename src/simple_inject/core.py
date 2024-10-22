@@ -53,6 +53,38 @@ class SimpleInject:
         context[namespace][key] = value
         self._context.set(context)
 
+    def update(
+        self,
+        key: str,
+        updater: Callable[[T], T],
+        namespace: str = 'default',
+        if_not_found: Literal['none', 'raise'] = 'none',
+    ):
+        """
+        Update a dependency in the current context.
+
+        Parameters
+        ----------
+        key : str
+            The key of the dependency to update.
+        updater : (oldValue: T) -> T
+            The updater function.
+        namespace : str, optional
+            The namespace of the dependency to update (default is 'default').
+        if_not_found : {'none', 'raise'}, optional
+            What to do if the dependency is not found (default is 'none').
+            - 'none' : do nothing.
+            - 'raise' : raise a DependencyNotFoundError.
+
+        Raises
+        ------
+        DependencyNotFoundError
+            If the requested dependency is not found in the given namespace.
+        """
+        old = self.inject(key, namespace, if_not_found=if_not_found)
+        new = updater(old)
+        self.provide(key, new, namespace)
+
     def inject(
         self,
         key: str,

@@ -1,6 +1,6 @@
 import pytest
 
-from simple_inject import create_scope, inject, provide, purge, scoped
+from simple_inject import create_scope, inject, provide, purge, scoped, update
 
 
 @pytest.fixture(autouse=True)
@@ -141,3 +141,30 @@ def test_scope_isolation_between_tests():
     with pytest.raises(Exception):
         inject('key_from_previous_test', if_not_found='raise')
     provide('key_for_next_test', 'value')
+
+
+def test_update():
+    """
+    Test the update functionality.
+    """
+    provide('counter', 0)
+    assert inject('counter') == 0
+
+    def increment(x):
+        return x + 1
+
+    update('counter', increment)
+    assert inject('counter') == 1
+
+    update('counter', lambda x: x * 2)
+    assert inject('counter') == 2
+
+    # Test update with namespace
+    provide('counter', 10, namespace='ns1')
+    update('counter', increment, namespace='ns1')
+    assert inject('counter', namespace='ns1') == 11
+    assert inject('counter') == 2  # Ensure default namespace is unchanged
+
+    # Test update on non-existent key
+    with pytest.raises(Exception):
+        update('non_existent', increment)

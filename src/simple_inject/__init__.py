@@ -1,4 +1,4 @@
-from typing import Any, Literal, Optional
+from typing import Any, Callable, Literal, Optional
 
 from .core import Inject, SimpleInject
 
@@ -49,6 +49,15 @@ def inject(
 
 def state(namespace: Optional[str] = None):
     return __simple_inject.state(namespace)
+
+
+def update(
+    key: str,
+    updater: Callable[[Any], Any],
+    namespace: str = 'default',
+    if_not_found: Literal['none', 'raise'] = 'raise',
+):
+    return __simple_inject.update(key, updater, namespace, if_not_found)
 
 
 def create_scope():

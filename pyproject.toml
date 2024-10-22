@@ -1,10 +1,10 @@
 [project]
 name = "py-simple-inject"
-version = "0.5.1"
+version = "0.6.0"
 description = "A lightweight dependency injection library for Python"
 authors = [{ name = "frostime", email = "frostime@foxmail.com" }]
 dependencies = []
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 readme = "README.md"
 license = { text = "MIT" }
 keywords = ["dependency injection", "DI", "IoC", "inversion of control"]
