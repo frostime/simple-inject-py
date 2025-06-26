@@ -1,6 +1,8 @@
 import inspect
+import warnings
 from collections import defaultdict
 from contextvars import ContextVar
+from copy import deepcopy
 from functools import wraps
 from typing import (
     Any,
@@ -14,6 +16,8 @@ from typing import (
 )
 
 T = TypeVar('T')
+
+_SENTINEL = object()
 
 
 class DependencyNotFoundError(Exception):
@@ -32,9 +36,17 @@ class Inject(Generic[T]):
 
 class SimpleInject:
     def __init__(self):
-        self._context: ContextVar[Dict[str, Dict[str, Any]]] = ContextVar(
-            'context', default=defaultdict(dict)
-        )
+        self._context: ContextVar[Dict[str, Dict[str, Any]]] = ContextVar('context')
+
+    def _get_context(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get the current context, initializing it if it doesn't exist.
+        """
+        context = self._context.get(_SENTINEL)
+        if context is _SENTINEL:
+            context = defaultdict(dict)
+            self._context.set(context)
+        return context
 
     def provide(self, key: str, value: Any, namespace: str = 'default'):
         """
@@ -49,7 +61,7 @@ class SimpleInject:
         namespace : str, optional
             The namespace for the dependency (default is 'default').
         """
-        context = self._context.get()
+        context = self._get_context()
         context[namespace][key] = value
         self._context.set(context)
 
@@ -115,10 +127,15 @@ class SimpleInject:
         DependencyNotFoundError
             If the requested dependency is not found in the given namespace.
         """
-        context = self._context.get()
+        context = self._get_context()
         if key in context[namespace]:
             return context[namespace][key]
         elif if_not_found == 'none':
+            warnings.warn(
+                f"Dependency '{key}' not found in namespace '{namespace}'",
+                UserWarning,
+                source=self.inject,
+            )
             return None
         else:
             raise DependencyNotFoundError(
@@ -139,15 +156,23 @@ class SimpleInject:
         - `Dict[str, Dict[str, Any]]`
             - The state of the dependency injection context.
         """
-        all_context = self._context.get()
+        all_context = self._get_context()
         if namespace is None:
             return dict(all_context)
         else:
             return all_context[namespace]
 
-    def create_scope(self):
+    def create_scope(self, deep: bool = False):
         """
         Create a new dependency scope.
+
+        Parameters
+        ----------
+        deep : bool, optional
+            If True, performs a deep copy of the dependencies, providing
+            complete isolation between scopes. If False (default), performs a
+            shallow copy, which is faster but may lead to shared state for
+            mutable dependencies.
 
         Returns
         -------
@@ -156,26 +181,36 @@ class SimpleInject:
         """
 
         class ScopeManager:
-            def __init__(self, outer_self):
+            def __init__(self, outer_self, deep_copy):
                 self.outer_self = outer_self
                 self.token = None
                 self.previous_context = None
+                self.deep_copy = deep_copy
 
             def __enter__(self):
-                self.previous_context = self.outer_self._context.get()
+                self.previous_context = self.outer_self._get_context()
                 new_context = defaultdict(dict)
                 for namespace, deps in self.previous_context.items():
-                    new_context[namespace] = deps.copy()
+                    if self.deep_copy:
+                        new_context[namespace] = deepcopy(deps)
+                    else:
+                        new_context[namespace] = deps.copy()
                 self.token = self.outer_self._context.set(new_context)
 
             def __exit__(self, exc_type, exc_value, traceback):
                 self.outer_self._context.reset(self.token)
 
-        return ScopeManager(self)
+        return ScopeManager(self, deep)
 
-    def scoped(self):
+    def scoped(self, deep: bool = False):
         """
         Decorator to create a new dependency scope for a function.
+
+        Parameters
+        ----------
+        deep : bool, optional
+            If True, the scope will be created with a deep copy of dependencies.
+            See `create_scope` for more details.
 
         Returns
         -------
@@ -186,7 +221,7 @@ class SimpleInject:
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
-                with self.create_scope():
+                with self.create_scope(deep=deep):
                     return func(*args, **kwargs)
 
             return wrapper
@@ -204,7 +239,7 @@ class SimpleInject:
         namespace : str, optional
             The namespace to purge. If not specified, all dependencies are purged.
         """
-        context = self._context.get()
+        context = self._get_context()
         if namespace is not None:
             context[namespace].clear()
         else:

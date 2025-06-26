@@ -1,6 +1,6 @@
 [project]
 name = "py-simple-inject"
-version = "0.6.0"
+version = "0.7.0"
 description = "A lightweight dependency injection library for Python"
 authors = [{ name = "frostime", email = "frostime@foxmail.com" }]
 dependencies = []
