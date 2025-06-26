@@ -1,6 +1,14 @@
 import pytest
 
-from simple_inject import create_scope, inject, provide, purge, scoped, update
+from simple_inject import (
+    create_scope,
+    has,
+    inject,
+    provide,
+    purge,
+    scoped,
+    update,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -28,6 +36,29 @@ def test_provide_and_inject_with_namespace():
     provide('key', 'value2', namespace='ns2')
     assert inject('key', namespace='ns1') == 'value1'
     assert inject('key', namespace='ns2') == 'value2'
+
+
+def test_has_method():
+    """
+    Test the has() method for checking dependency existence.
+    """
+    # Test in default namespace
+    provide('key_exists', 'some_value')
+    assert has('key_exists') is True
+    assert has('key_does_not_exist') is False
+
+    # Test with namespaces
+    provide('shared_key', 'ns1_value', namespace='ns1')
+    assert has('shared_key', namespace='ns1') is True
+    assert has('shared_key', namespace='ns2') is False
+
+    # Test after providing in another namespace
+    provide('shared_key', 'ns2_value', namespace='ns2')
+    assert has('shared_key', namespace='ns2') is True
+
+    # Test that has() returns True even if the value is None
+    provide('none_value', None)
+    assert has('none_value') is True
 
 
 def test_inject_nonexistent_key():

@@ -97,6 +97,25 @@ class SimpleInject:
         new = updater(old)
         self.provide(key, new, namespace)
 
+    def has(self, key: str, namespace: str = 'default') -> bool:
+        """
+        Check if a dependency exists in the current context.
+
+        Parameters
+        ----------
+        key : str
+            The key of the dependency to check.
+        namespace : str, optional
+            The namespace of the dependency (default is 'default').
+
+        Returns
+        -------
+        bool
+            True if the dependency exists, False otherwise.
+        """
+        context = self._get_context()
+        return key in context[namespace]
+
     def inject(
         self,
         key: str,

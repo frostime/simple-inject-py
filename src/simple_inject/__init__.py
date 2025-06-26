@@ -60,6 +60,25 @@ def update(
     return __simple_inject.update(key, updater, namespace, if_not_found)
 
 
+def has(key: str, namespace: str = 'default') -> bool:
+    """
+    Check if a dependency exists in the current context.
+
+    Parameters
+    ----------
+    key : str
+        The key of the dependency to check.
+    namespace : str, optional
+        The namespace of the dependency (default is 'default').
+
+    Returns
+    -------
+    bool
+        True if the dependency exists, False otherwise.
+    """
+    return __simple_inject.has(key, namespace)
+
+
 def create_scope():
     return __simple_inject.create_scope()
 
