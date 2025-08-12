@@ -5,7 +5,7 @@ from .core import Inject, SimpleInject
 __simple_inject = SimpleInject()
 
 
-def provide(key: str, value: Any, namespace: str = 'default'):
+def provide(key: str, value: Any, namespace: str = "default"):
     """
     Provide a dependency in the current context.
 
@@ -22,7 +22,9 @@ def provide(key: str, value: Any, namespace: str = 'default'):
 
 
 def inject(
-    key: str, namespace: str = 'default', if_not_found: Literal['none', 'raise'] = 'none'
+    key: str,
+    namespace: str = "default",
+    if_not_found: Literal["none", "raise"] = "none",
 ) -> Any:
     """
     Inject a dependency.
@@ -54,13 +56,13 @@ def state(namespace: Optional[str] = None):
 def update(
     key: str,
     updater: Callable[[Any], Any],
-    namespace: str = 'default',
-    if_not_found: Literal['none', 'raise'] = 'raise',
+    namespace: str = "default",
+    if_not_found: Literal["none", "raise"] = "raise",
 ):
     return __simple_inject.update(key, updater, namespace, if_not_found)
 
 
-def has(key: str, namespace: str = 'default') -> bool:
+def has(key: str, namespace: str = "default") -> bool:
     """
     Check if a dependency exists in the current context.
 
@@ -79,12 +81,12 @@ def has(key: str, namespace: str = 'default') -> bool:
     return __simple_inject.has(key, namespace)
 
 
-def create_scope():
-    return __simple_inject.create_scope()
+def create_scope(deep: bool = False):
+    return __simple_inject.create_scope(deep)
 
 
-def scoped():
-    return __simple_inject.scoped()
+def scoped(deep: bool = False):
+    return __simple_inject.scoped(deep)
 
 
 def purge(namespace: Optional[str] = None):

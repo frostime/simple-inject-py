@@ -34,9 +34,101 @@ class Inject(Generic[T]):
         self.namespace = namespace
 
 
+class ScopeManager:
+    def __init__(self, outer_self: 'SimpleInject', deep_copy: bool):
+        self.outer_self = outer_self
+        self.token = None
+        self.previous_context = None
+        self.deep_copy = deep_copy
+        self._provided_keys = {}  # Track keys provided in this scope
+        self._original_provide = None  # Store original provide method
+
+    def __enter__(self):
+        self.previous_context = self.outer_self._get_context()
+
+        # Create new context for the scope
+        new_context = defaultdict(dict)
+        for namespace, deps in self.previous_context.items():
+            if self.deep_copy:
+                new_context[namespace] = deepcopy(deps)
+            else:
+                new_context[namespace] = deps.copy()
+        self.token = self.outer_self._context.set(new_context)
+
+        # Add this scope to the stack for tracking
+        self._scope_active = True
+        self.outer_self._scope_stack.append(self)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # Mark scope as inactive to stop tracking provides
+        self._scope_active = False
+
+        # Remove this scope from the stack
+        if self.outer_self._scope_stack and self.outer_self._scope_stack[-1] is self:
+            self.outer_self._scope_stack.pop()
+
+        # Save the final state for 'All' policy before resetting
+        current_context = self.outer_self._get_context()
+        self._scope_final_state = {}
+        for namespace, deps in current_context.items():
+            if self.deep_copy:
+                self._scope_final_state[namespace] = deepcopy(deps)
+            else:
+                self._scope_final_state[namespace] = deps.copy()
+
+        # Reset the context
+        self.outer_self._context.reset(self.token)
+
+    def scoped_state(
+        self,
+        policy: Literal['Provided', 'All'] = 'Provided',
+        namespace: Optional[str] = None,
+    ):
+        """
+        Get the state within the scope.
+
+        Parameters
+        ----------
+        policy : {'Provided', 'All'}, optional
+            - 'Provided': Only return dependencies that were provided within the scope
+            - 'All': Return the complete state within the scope
+        namespace : Optional[str], optional
+            Specific namespace to get state from. If None, returns state from all namespaces.
+
+        Returns
+        -------
+        Dict[str, Any] or Dict[str, Dict[str, Any]]
+            The state according to the specified policy and namespace.
+
+        Raises
+        ------
+        RuntimeError
+            If called before the scope has exited.
+        """
+        # Check if scope is still active
+        if getattr(self, '_scope_active', True):
+            raise RuntimeError('scoped_state can only be called after exiting the scope')
+
+        if policy == 'All':
+            result = getattr(self, '_scope_final_state', {})
+        else:  # policy == 'Provided'
+            result = dict(self._provided_keys)
+
+        # Filter by namespace if specified
+        if namespace is not None:
+            return result.get(namespace, {})
+
+        # Return a copy to prevent external modification
+        if isinstance(result, dict):
+            return {k: dict(v) if isinstance(v, dict) else v for k, v in result.items()}
+        return result
+
+
 class SimpleInject:
     def __init__(self):
         self._context: ContextVar[Dict[str, Dict[str, Any]]] = ContextVar('context')
+        self._scope_stack: list['ScopeManager'] = []  # Stack to track active scopes
 
     def _get_context(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -61,6 +153,23 @@ class SimpleInject:
         namespace : str, optional
             The namespace for the dependency (default is 'default').
         """
+        # Track this provide operation in the most recent active scope
+        if self._scope_stack:
+            current_scope = self._scope_stack[-1]
+            if current_scope._scope_active:
+                if namespace not in current_scope._provided_keys:
+                    current_scope._provided_keys[namespace] = {}
+
+                # Store the value according to deep_copy setting
+                if current_scope.deep_copy:
+                    current_scope._provided_keys[namespace][key] = deepcopy(value)
+                else:
+                    # For shallow copy, we need to store a copy to avoid
+                    # later modifications affecting our record
+                    current_scope._provided_keys[namespace][key] = (
+                        self._safe_shallow_copy(value)
+                    )
+
         context = self._get_context()
         context[namespace][key] = value
         self._context.set(context)
@@ -199,26 +308,6 @@ class SimpleInject:
             A context manager for the new dependency scope.
         """
 
-        class ScopeManager:
-            def __init__(self, outer_self, deep_copy):
-                self.outer_self = outer_self
-                self.token = None
-                self.previous_context = None
-                self.deep_copy = deep_copy
-
-            def __enter__(self):
-                self.previous_context = self.outer_self._get_context()
-                new_context = defaultdict(dict)
-                for namespace, deps in self.previous_context.items():
-                    if self.deep_copy:
-                        new_context[namespace] = deepcopy(deps)
-                    else:
-                        new_context[namespace] = deps.copy()
-                self.token = self.outer_self._context.set(new_context)
-
-            def __exit__(self, exc_type, exc_value, traceback):
-                self.outer_self._context.reset(self.token)
-
         return ScopeManager(self, deep)
 
     def scoped(self, deep: bool = False):
@@ -246,6 +335,40 @@ class SimpleInject:
             return wrapper
 
         return decorator
+
+    def _safe_shallow_copy(self, value: Any) -> Any:
+        """
+        Safely create a shallow copy of a value.
+
+        For objects with a copy() method, use it. For immutable types,
+        return the value directly. For other mutable types, attempt
+        various copy strategies.
+        """
+        # Immutable types can be returned directly
+        if isinstance(value, (str, int, float, bool, tuple, frozenset, type(None))):
+            return value
+
+        # Try the copy() method first
+        if hasattr(value, 'copy') and callable(getattr(value, 'copy')):
+            try:
+                return value.copy()
+            except (AttributeError, TypeError):
+                pass
+
+        # For lists, use list() constructor
+        if isinstance(value, list):
+            return list(value)
+
+        # For sets, use set() constructor
+        if isinstance(value, set):
+            return set(value)
+
+        # For dicts, use dict() constructor
+        if isinstance(value, dict):
+            return dict(value)
+
+        # For other types, return the reference (best effort)
+        return value
 
     def purge(self, namespace: Optional[str] = None):
         """

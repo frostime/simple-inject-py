@@ -94,7 +94,7 @@ with create_scope():
     provide('key', 'inner')
     print(inject('key'))  # 输出：inner
 
-    with create_scope():
+    with create_scope() as inner_scope:
         provide('key', 'innermost')
         print(inject('key'))  # 输出：innermost
 
@@ -102,6 +102,40 @@ with create_scope():
 
 print(inject('key'))  # 输出：outer
 ```
+
+### 访问作用域状态
+
+您可以使用 `scoped_state` 方法在作用域退出后访问其内部的依赖状态：
+
+```python
+provide('config', {'debug': True})
+
+with create_scope() as scope:
+    provide('config', {'debug': False})
+    provide('new_setting', 'scoped_value')
+
+# 获取在作用域内添加或修改的依赖
+provided_state = scope.scoped_state('Provided')  # 默认策略
+print(provided_state)
+# 输出：{'default': {'config': {'debug': False}, 'new_setting': 'scoped_value'}}
+
+# 获取作用域内的完整状态
+all_state = scope.scoped_state('All')
+print(all_state)
+# 输出：{'default': {'config': {'debug': False}, 'new_setting': 'scoped_value'}}
+
+# 获取特定命名空间的状态
+with create_scope() as scope:
+    provide('key1', 'value1', namespace='ns1')
+    provide('key2', 'value2', namespace='ns2')
+
+ns1_state = scope.scoped_state('Provided', 'ns1')
+print(ns1_state)  # 输出：{'key1': 'value1'}
+```
+
+`scoped_state` 方法支持两种策略：
+- `'Provided'`（默认）：仅返回在作用域内添加或修改的依赖
+- `'All'`：返回作用域内的完整状态
 
 ### 通过函数参数自动注入
 

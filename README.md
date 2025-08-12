@@ -92,7 +92,7 @@ with create_scope():
     provide('key', 'inner')
     print(inject('key'))  # Output: inner
 
-    with create_scope():
+    with create_scope() as inner_scope:
         provide('key', 'innermost')
         print(inject('key'))  # Output: innermost
 
@@ -100,6 +100,40 @@ with create_scope():
 
 print(inject('key'))  # Output: outer
 ```
+
+### Accessing Scoped State
+
+You can access the state of dependencies within a scope after it exits using the `scoped_state` method:
+
+```python
+provide('config', {'debug': True})
+
+with create_scope() as scope:
+    provide('config', {'debug': False})
+    provide('new_setting', 'scoped_value')
+
+# Get only the dependencies that were added or modified in the scope
+provided_state = scope.scoped_state('Provided')  # Default policy
+print(provided_state)
+# Output: {'default': {'config': {'debug': False}, 'new_setting': 'scoped_value'}}
+
+# Get the complete state within the scope
+all_state = scope.scoped_state('All')
+print(all_state)
+# Output: {'default': {'config': {'debug': False}, 'new_setting': 'scoped_value'}}
+
+# Get state for a specific namespace
+with create_scope() as scope:
+    provide('key1', 'value1', namespace='ns1')
+    provide('key2', 'value2', namespace='ns2')
+
+ns1_state = scope.scoped_state('Provided', 'ns1')
+print(ns1_state)  # Output: {'key1': 'value1'}
+```
+
+The `scoped_state` method supports two policies:
+- `'Provided'` (default): Returns only dependencies that were added or modified within the scope
+- `'All'`: Returns the complete state within the scope
 
 ### Automatic Injection via Function Parameters
 
